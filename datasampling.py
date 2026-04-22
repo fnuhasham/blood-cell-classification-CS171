@@ -22,7 +22,7 @@ for class_name in os.listdir(SOURCE_DIR):
     images = sorted(images)
     random.shuffle(images)
 
-    n_samples = len(images)
+    n_samples = IMAGES_PER_CLASS
     selected_images = images[:n_samples]
 
     # create output folder
