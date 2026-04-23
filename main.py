@@ -1,6 +1,6 @@
 import os
 
-DATASET_PATH = "."
+DATASET_PATH = "bloodcells_subset"
 
 print("Folders found:")
 print(os.listdir(DATASET_PATH))
@@ -10,8 +10,6 @@ from tensorflow.keras import layers, models
 import matplotlib.pyplot as plt
 from sklearn.metrics import classification_report, confusion_matrix
 import numpy as np
-
-DATASET_PATH = "."
 
 IMG_SIZE = (128, 128)
 BATCH_SIZE = 32
