@@ -6,7 +6,7 @@ print("Folders found:")
 print(os.listdir(DATASET_PATH))
 
 import tensorflow as tf
-from tensorflow.keras import layers, models
+from tensorflow.keras import layers, models, regularizers
 import matplotlib.pyplot as plt
 from sklearn.metrics import classification_report, confusion_matrix
 import numpy as np
@@ -40,30 +40,55 @@ AUTOTUNE = tf.data.AUTOTUNE
 train_data = train_data.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
 val_data = val_data.cache().prefetch(buffer_size=AUTOTUNE)
 
+# Data augmentation to help with overfitting and improve generalization
+data_augmentation = tf.keras.Sequential([
+    layers.RandomFlip("horizontal"),
+    layers.RandomRotation(0.08),
+    layers.RandomZoom(0.10),
+], name="data_augmentation")
+
+weight_decay = 5e-4
+
+# Model has convolutional layers with L2 regularization and batch normalization
 model = models.Sequential([
-    layers.Rescaling(1./255, input_shape=(128, 128, 3)),
+    layers.Input(shape=(128, 128, 3)),
+    data_augmentation,
+    layers.Rescaling(1./255),
 
-    layers.Conv2D(32, (3, 3), activation="relu"),
+    layers.Conv2D(
+        32, (3, 3), activation="relu",
+        kernel_regularizer=regularizers.l2(weight_decay)
+    ),
     layers.BatchNormalization(),
     layers.MaxPooling2D(),
 
-    layers.Conv2D(64, (3, 3), activation="relu"),
+    layers.Conv2D(
+        64, (3, 3), activation="relu",
+        kernel_regularizer=regularizers.l2(weight_decay)
+    ),
     layers.BatchNormalization(),
     layers.MaxPooling2D(),
 
-    layers.Conv2D(128, (3, 3), activation="relu"),
+    layers.Conv2D(
+        128, (3, 3), activation="relu",
+        kernel_regularizer=regularizers.l2(weight_decay)
+    ),
     layers.BatchNormalization(),
     layers.MaxPooling2D(),
+    layers.Dropout(0.3),
 
-    layers.Flatten(),
-    layers.Dense(128, activation="relu"),
+    layers.GlobalAveragePooling2D(),
+    layers.Dense(
+        128, activation="relu",
+        kernel_regularizer=regularizers.l2(weight_decay)
+    ),
     layers.Dropout(0.5),
 
     layers.Dense(len(class_names), activation="softmax")
 ])
 
 model.compile(
-    optimizer="adam",
+    optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
     loss="sparse_categorical_crossentropy",
     metrics=["accuracy"]
 )
@@ -91,14 +116,20 @@ y_true = []
 y_pred = []
 
 for images, labels in val_data:
-    predictions = model.predict(images)
+    predictions = model.predict(images, verbose=0)
     predicted_labels = np.argmax(predictions, axis=1)
 
     y_true.extend(labels.numpy())
     y_pred.extend(predicted_labels)
 
 print("\nClassification Report:")
-print(classification_report(y_true, y_pred, target_names=class_names))
+print(classification_report(
+    y_true,
+    y_pred,
+    labels=list(range(len(class_names))),
+    target_names=class_names,
+    zero_division=0
+))
 
 print("\nConfusion Matrix:")
 print(confusion_matrix(y_true, y_pred))
