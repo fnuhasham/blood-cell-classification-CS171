@@ -1,7 +1,5 @@
 import os
 
-import keras.src.models.sequential
-
 DATASET_PATH = "bloodcells_subset"
 
 print("Folders found:")
