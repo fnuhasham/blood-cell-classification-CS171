@@ -101,10 +101,17 @@ model.compile(
 
 model.summary()
 
+early_stopping = tf.keras.callbacks.EarlyStopping(
+    monitor="val_loss",
+    patience=5,
+    restore_best_weights=True
+)
+
 history = model.fit(
     train_data,
     validation_data=val_data,
-    epochs=10
+    epochs=20,
+    callbacks=[early_stopping]
 )
 
 plt.plot(history.history["accuracy"], label="Training Accuracy")
