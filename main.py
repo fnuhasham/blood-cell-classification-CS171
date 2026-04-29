@@ -45,6 +45,8 @@ data_augmentation = tf.keras.Sequential([
     layers.RandomFlip("horizontal"),
     layers.RandomRotation(0.08),
     layers.RandomZoom(0.10),
+    layers.RandomContrast(0.1),
+    layers.RandomBrightness(0.1),
 ], name="data_augmentation")
 
 weight_decay = 1e-4
@@ -84,11 +86,11 @@ model = models.Sequential([
     layers.MaxPooling2D(),
 
     layers.GlobalAveragePooling2D(),
-    layers.Dropout(0.4),
+    layers.Dropout(0.5),
 
     layers.Dense(128, activation="relu", kernel_regularizer=regularizers.l2(weight_decay)),
     layers.BatchNormalization(),
-    layers.Dropout(0.5),
+    layers.Dropout(0.6),
 
     layers.Dense(len(class_names), activation="softmax")
 ])
