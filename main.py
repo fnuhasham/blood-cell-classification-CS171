@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import classification_report, confusion_matrix
 import numpy as np
 
-IMG_SIZE = (128, 128)
-BATCH_SIZE = 32
+IMG_SIZE = (160, 160)
+BATCH_SIZE = 16
 SEED = 42
 
 train_data = tf.keras.utils.image_dataset_from_directory(
@@ -45,13 +45,15 @@ data_augmentation = tf.keras.Sequential([
     layers.RandomFlip("horizontal"),
     layers.RandomRotation(0.08),
     layers.RandomZoom(0.10),
+    layers.RandomContrast(0.1),
+    layers.RandomBrightness(0.1),
 ], name="data_augmentation")
 
-weight_decay = 5e-4
+weight_decay = 1e-4
 
 # Model has convolutional layers with L2 regularization and batch normalization
 model = models.Sequential([
-    layers.Input(shape=(128, 128, 3)),
+    layers.Input(shape=(160, 160, 3)),
     data_augmentation,
     layers.Rescaling(1./255),
 
@@ -75,14 +77,20 @@ model = models.Sequential([
     ),
     layers.BatchNormalization(),
     layers.MaxPooling2D(),
-    layers.Dropout(0.3),
 
-    layers.GlobalAveragePooling2D(),
-    layers.Dense(
-        128, activation="relu",
+    layers.Conv2D(
+        256, (3, 3), activation="relu",
         kernel_regularizer=regularizers.l2(weight_decay)
     ),
+    layers.BatchNormalization(),
+    layers.MaxPooling2D(),
+
+    layers.GlobalAveragePooling2D(),
     layers.Dropout(0.5),
+
+    layers.Dense(128, activation="relu", kernel_regularizer=regularizers.l2(weight_decay)),
+    layers.BatchNormalization(),
+    layers.Dropout(0.6),
 
     layers.Dense(len(class_names), activation="softmax")
 ])
@@ -95,10 +103,17 @@ model.compile(
 
 model.summary()
 
+early_stopping = tf.keras.callbacks.EarlyStopping(
+    monitor="val_loss",
+    patience=5,
+    restore_best_weights=True
+)
+
 history = model.fit(
     train_data,
     validation_data=val_data,
-    epochs=10
+    epochs=20,
+    callbacks=[early_stopping]
 )
 
 plt.plot(history.history["accuracy"], label="Training Accuracy")
