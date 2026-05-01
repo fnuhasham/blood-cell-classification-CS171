@@ -1,21 +1,21 @@
 import os
-
-DATASET_PATH = "bloodcells_subset"
-
-print("Folders found:")
-print(os.listdir(DATASET_PATH))
-
-from tensorflow.keras.applications import ResNet50
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers, models
+from tensorflow.keras.applications import ResNet50
 import matplotlib.pyplot as plt
 from sklearn.metrics import classification_report, confusion_matrix
-import numpy as np
+from sklearn.utils.class_weight import compute_class_weight
 
+DATASET_PATH = "bloodcells_dataset"
 IMG_SIZE = (128, 128)
 BATCH_SIZE = 32
 SEED = 42
 
+print("Folders found:")
+print(os.listdir(DATASET_PATH))
+
+# Split Data into 80/10/10
 train_data = tf.keras.utils.image_dataset_from_directory(
     DATASET_PATH,
     validation_split=0.2,
@@ -25,7 +25,7 @@ train_data = tf.keras.utils.image_dataset_from_directory(
     batch_size=BATCH_SIZE
 )
 
-val_data = tf.keras.utils.image_dataset_from_directory(
+temp_data = tf.keras.utils.image_dataset_from_directory(
     DATASET_PATH,
     validation_split=0.2,
     subset="validation",
@@ -34,9 +34,25 @@ val_data = tf.keras.utils.image_dataset_from_directory(
     batch_size=BATCH_SIZE
 )
 
+temp_batches = tf.data.experimental.cardinality(temp_data).numpy()
+val_data = temp_data.take(temp_batches // 2)
+test_data = temp_data.skip(temp_batches // 2)
+
 class_names = train_data.class_names
 print("Classes:", class_names)
 
+# Use class weights from training labels
+train_labels = np.concatenate([y.numpy() for _, y in train_data])
+class_weights = compute_class_weight(
+    class_weight="balanced",
+    classes=np.unique(train_labels),
+    y=train_labels
+)
+
+class_weight_dict = dict(enumerate(class_weights))
+print("Class weights:", class_weight_dict)
+
+# Cache and Prefetch
 AUTOTUNE = tf.data.AUTOTUNE
 train_data = train_data.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
 val_data = val_data.cache().prefetch(buffer_size=AUTOTUNE)
@@ -82,9 +98,11 @@ model.summary()
 history = model.fit(
     train_data,
     validation_data=val_data,
-    epochs=10
+    epochs=10,
+    class_weight=class_weight_dict
 )
 
+# Show Accuracy
 plt.plot(history.history["accuracy"], label="Training Accuracy")
 plt.plot(history.history["val_accuracy"], label="Validation Accuracy")
 plt.xlabel("Epoch")
@@ -93,13 +111,13 @@ plt.legend()
 plt.title("Training vs Validation Accuracy")
 plt.show()
 
-val_loss, val_accuracy = model.evaluate(val_data)
-print("Validation Accuracy:", val_accuracy)
+test_loss, test_accuracy = model.evaluate(test_data)
+print("Test Accuracy:", test_accuracy)
 
 y_true = []
 y_pred = []
 
-for images, labels in val_data:
+for images, labels in test_data:
     predictions = model.predict(images, verbose=0)
     predicted_labels = np.argmax(predictions, axis=1)
 
