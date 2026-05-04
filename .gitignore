@@ -3,3 +3,4 @@
 !.gitignore
 !.datasampling.py
 !.resnet.py
+!.predict.py
