@@ -8,7 +8,7 @@ from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.utils.class_weight import compute_class_weight
 
 DATASET_PATH = "bloodcells_dataset"
-IMG_SIZE = (160, 160)
+IMG_SIZE = (224, 224)
 BATCH_SIZE = 32
 SEED = 42
 
@@ -70,14 +70,13 @@ data_augmentation = tf.keras.Sequential([
 base_model = ResNet50(
     include_top=False,
     weights="imagenet",
-    input_shape=(160, 160, 3)
+    input_shape=(224, 224, 3)
 )
 base_model.trainable = False
 
 model = models.Sequential([
-    layers.Input(shape=(160, 160, 3)),
+    layers.Input(shape=(224, 224, 3)),
     data_augmentation,
-    layers.Resizing(224, 224),
     layers.Lambda(lambda x: tf.keras.applications.resnet50.preprocess_input(x)),
 
     base_model,
