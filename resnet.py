@@ -8,7 +8,7 @@ from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.utils.class_weight import compute_class_weight
 
 DATASET_PATH = "bloodcells_dataset"
-IMG_SIZE = (128, 128)
+IMG_SIZE = (160, 160)
 BATCH_SIZE = 32
 SEED = 42
 
@@ -56,23 +56,26 @@ print("Class weights:", class_weight_dict)
 AUTOTUNE = tf.data.AUTOTUNE
 train_data = train_data.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
 val_data = val_data.cache().prefetch(buffer_size=AUTOTUNE)
+test_data = test_data.cache().prefetch(buffer_size=AUTOTUNE)
 
 # Data augmentation to help with overfitting and improve generalization
 data_augmentation = tf.keras.Sequential([
     layers.RandomFlip("horizontal"),
     layers.RandomRotation(0.08),
     layers.RandomZoom(0.10),
+    layers.RandomContrast(0.1),
+    layers.RandomBrightness(0.1),
 ], name="data_augmentation")
 
 base_model = ResNet50(
     include_top=False,
     weights="imagenet",
-    input_shape=(224, 224, 3)
+    input_shape=(160, 160, 3)
 )
 base_model.trainable = False
 
 model = models.Sequential([
-    layers.Input(shape=(128, 128, 3)),
+    layers.Input(shape=(160, 160, 3)),
     data_augmentation,
     layers.Resizing(224, 224),
     layers.Lambda(lambda x: tf.keras.applications.resnet50.preprocess_input(x)),
