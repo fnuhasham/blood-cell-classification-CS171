@@ -1,11 +1,12 @@
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
-DATASET_PATH = "bloodcells_subset"
+DATASET_PATH = "bloodcells_dataset"
 IMG_SIZE = (160, 160)
 SEED = 42
-IMG_PATH = "ERB_2429.jpg"
+IMG_PATH = os.path.join(DATASET_PATH, "ig", "MY_992073.jpg")
 
 # Get class names from the same dataset used in training
 train_data = tf.keras.utils.image_dataset_from_directory(
