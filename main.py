@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers, models, regularizers
 import matplotlib.pyplot as plt
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, ConfusionMatrixDisplay
 from sklearn.utils.class_weight import compute_class_weight
 
 DATASET_PATH = "bloodcells_dataset"
@@ -143,6 +143,15 @@ plt.legend()
 plt.title("Training vs Validation Accuracy")
 plt.show()
 
+# Show Loss
+plt.plot(history.history["loss"], label="Training Loss")
+plt.plot(history.history["val_loss"], label="Validation Loss")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.legend()
+plt.title("Training vs Validation Loss")
+plt.show()
+
 test_loss, test_accuracy = model.evaluate(test_data)
 print("Test Accuracy:", test_accuracy)
 
@@ -166,7 +175,9 @@ print(classification_report(
 ))
 
 print("\nConfusion Matrix:")
-print(confusion_matrix(y_true, y_pred))
+disp = ConfusionMatrixDisplay.from_predictions(y_true, y_pred, labels=class_names)
+disp.plot(cmap='Blue')
+plt.show()
 
 model.save("blood_cell_cnn_model.keras")
 print("Model saved as blood_cell_cnn_model.keras")
