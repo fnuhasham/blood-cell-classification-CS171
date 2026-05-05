@@ -36,8 +36,8 @@ temp_data = tf.keras.utils.image_dataset_from_directory(
 total_size = temp_data.cardinality().numpy()
 val_data = temp_data.take(total_size // 2)
 test_data = temp_data.skip(total_size // 2)
-print("Validation Batches: ", val_data.cardinality().numpy() * BATCH_SIZE)
-print("Test Batches: ", test_data.cardinality().numpy() * BATCH_SIZE)
+print("Validation Images: ", val_data.cardinality().numpy() * BATCH_SIZE)
+print("Test Images: ", test_data.cardinality().numpy() * BATCH_SIZE)
 
 class_names = train_data.class_names
 print("Classes:", class_names)
