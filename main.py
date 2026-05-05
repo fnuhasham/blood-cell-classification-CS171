@@ -33,9 +33,11 @@ temp_data = tf.keras.utils.image_dataset_from_directory(
     batch_size=BATCH_SIZE
 )
 
-temp_batches = tf.data.experimental.cardinality(temp_data).numpy()
-val_data = temp_data.take(temp_batches // 2)
-test_data = temp_data.skip(temp_batches // 2)
+total_size = temp_data.cardinality().numpy()
+val_data = temp_data.take(total_size // 2)
+test_data = temp_data.skip(total_size // 2)
+print("Validation Batches: ", val_data.cardinality().numpy() * BATCH_SIZE)
+print("Test Batches: ", test_data.cardinality().numpy() * BATCH_SIZE)
 
 class_names = train_data.class_names
 print("Classes:", class_names)
@@ -158,12 +160,25 @@ print("Test Accuracy:", test_accuracy)
 y_true = []
 y_pred = []
 
+correct_imgs, correct_true = [], []
+incorrect_imgs, incorrect_true, incorrect_pred = [], [], []
+
 for images, labels in test_data:
     predictions = model.predict(images, verbose=0)
     predicted_labels = np.argmax(predictions, axis=1)
+    true_labels = labels.numpy()
 
-    y_true.extend(labels.numpy())
+    y_true.extend(true_labels)
     y_pred.extend(predicted_labels)
+
+    for i in range(len(labels.numpy())):
+        if predicted_labels[i] == true_labels[i] and len(correct_imgs) < 4:
+            correct_imgs.append(images[i].numpy())
+            correct_true.append(true_labels[i])
+        elif predicted_labels[i] != true_labels[i] and len(incorrect_imgs) < 4:
+            incorrect_imgs.append(images[i].numpy())
+            incorrect_true.append(true_labels[i])
+            incorrect_pred.append(predicted_labels[i])
 
 print("\nClassification Report:")
 print(classification_report(
@@ -175,8 +190,37 @@ print(classification_report(
 ))
 
 print("\nConfusion Matrix:")
-disp = ConfusionMatrixDisplay.from_predictions(y_true, y_pred, labels=class_names)
-disp.plot(cmap='Blue')
+disp = ConfusionMatrixDisplay.from_predictions(y_true, y_pred, display_labels=class_names)
+disp.plot(cmap='Blues')
+plt.xticks(rotation = 45, ha='right')
+plt.tight_layout()
+plt.show()
+
+def to_displayable(img):
+    img = img - img.min()  # shift so min is 0
+    img = img / img.max()  # scale so max is 1
+    return img
+
+# Print Sample Predictions
+fig, axes = plt.subplots(2, 4, figsize=(14, 7))
+fig.suptitle('Test Predictions', fontsize=14)
+
+for col in range(4):
+    axes[0, col].imshow(to_displayable(correct_imgs[col]))
+    axes[0, col].set_title(f'✓ {class_names[correct_true[col]]}', color='green', fontsize=9)
+    axes[0, col].axis('off')
+
+    axes[1, col].imshow(to_displayable(incorrect_imgs[col]))
+    axes[1, col].set_title(
+        f'✗ pred: {class_names[incorrect_pred[col]]}\ntrue:  {class_names[incorrect_true[col]]}',
+        color='red', fontsize=9)
+    axes[1, col].axis('off')
+
+axes[0, 0].set_ylabel('Correct', fontsize=11)
+axes[1, 0].set_ylabel('Incorrect', fontsize=11)
+
+plt.tight_layout()
+plt.savefig('test_examples.png', dpi=150, bbox_inches='tight')
 plt.show()
 
 model.save("blood_cell_cnn_model.keras")
