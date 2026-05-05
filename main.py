@@ -220,7 +220,6 @@ axes[0, 0].set_ylabel('Correct', fontsize=11)
 axes[1, 0].set_ylabel('Incorrect', fontsize=11)
 
 plt.tight_layout()
-plt.savefig('test_examples.png', dpi=150, bbox_inches='tight')
 plt.show()
 
 model.save("blood_cell_cnn_model.keras")

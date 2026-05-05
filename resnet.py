@@ -98,11 +98,17 @@ model.compile(
 
 model.summary()
 
+early_stopping = tf.keras.callbacks.EarlyStopping(
+    monitor="val_loss",
+    patience=5,
+    restore_best_weights=True
+)
 
 history = model.fit(
     train_data,
     validation_data=val_data,
     epochs=10,
+    callbacks=[early_stopping],
     class_weight=class_weight_dict
 )
 
@@ -191,7 +197,6 @@ axes[0, 0].set_ylabel('Correct', fontsize=11)
 axes[1, 0].set_ylabel('Incorrect', fontsize=11)
 
 plt.tight_layout()
-plt.savefig('test_examples.png', dpi=150, bbox_inches='tight')
 plt.show()
 
 model.save("blood_cell_resnet50_model.keras")
