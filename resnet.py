@@ -120,73 +120,88 @@ fine_tune_history = model.fit(
 )
 
 # ---- Evaluate ----
+# Show Accuracy
+plt.plot(history.history["accuracy"], label="Training Accuracy")
+plt.plot(history.history["val_accuracy"], label="Validation Accuracy")
+plt.xlabel("Epoch")
+plt.ylabel("Accuracy")
+plt.legend()
+plt.title("Training vs Validation Accuracy")
+plt.show()
+
+# Show Loss
+plt.plot(history.history["loss"], label="Training Loss")
+plt.plot(history.history["val_loss"], label="Validation Loss")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.legend()
+plt.title("Training vs Validation Loss")
+plt.show()
+
 test_loss, test_accuracy = model.evaluate(test_data)
 print("Test Accuracy:", test_accuracy)
 
 y_true = []
 y_pred = []
 
-for images, labels in test_data:
-    preds = model.predict(images, verbose=0)
-    pred_labels = np.argmax(preds, axis=1)
-
-    y_true.extend(labels.numpy())
-    y_pred.extend(pred_labels)
-
-# ---- Confusion Matrix ----
-print("Confusion Matrix:")
-ConfusionMatrixDisplay.from_predictions(
-    y_true,
-    y_pred,
-    labels=list(range(len(class_names))),
-    display_labels=class_names
-)
-
-plt.xticks(rotation=45, ha="right")
-plt.title("Confusion Matrix")
-plt.tight_layout()
-plt.show()
-
-# ---- Sample Predictions ----
-def to_displayable(img):
-    img = img - img.min()
-    img = img / img.max()
-    return img
-
 correct_imgs, correct_true = [], []
 incorrect_imgs, incorrect_true, incorrect_pred = [], [], []
 
 for images, labels in test_data:
-    preds = model.predict(images, verbose=0)
-    pred_labels = np.argmax(preds, axis=1)
+    predictions = model.predict(images, verbose=0)
+    predicted_labels = np.argmax(predictions, axis=1)
+    true_labels = labels.numpy()
 
-    for i in range(len(labels)):
-        if pred_labels[i] == labels[i] and len(correct_imgs) < 4:
+    y_true.extend(true_labels)
+    y_pred.extend(predicted_labels)
+
+    for i in range(len(labels.numpy())):
+        if predicted_labels[i] == true_labels[i] and len(correct_imgs) < 4:
             correct_imgs.append(images[i].numpy())
-            correct_true.append(labels[i].numpy())
-        elif pred_labels[i] != labels[i] and len(incorrect_imgs) < 4:
+            correct_true.append(true_labels[i])
+        elif predicted_labels[i] != true_labels[i] and len(incorrect_imgs) < 4:
             incorrect_imgs.append(images[i].numpy())
-            incorrect_true.append(labels[i].numpy())
-            incorrect_pred.append(pred_labels[i])
+            incorrect_true.append(true_labels[i])
+            incorrect_pred.append(predicted_labels[i])
 
+print("\nClassification Report:")
+print(classification_report(
+    y_true,
+    y_pred,
+    labels=list(range(len(class_names))),
+    target_names=class_names,
+    zero_division=0
+))
+
+print("\nConfusion Matrix:")
+disp = ConfusionMatrixDisplay.from_predictions(y_true, y_pred, display_labels=class_names)
+disp.plot(cmap='Blues')
+plt.xticks(rotation = 45, ha='right')
+plt.tight_layout()
+plt.show()
+
+def to_displayable(img):
+    img = img - img.min()  # shift so min is 0
+    img = img / img.max()  # scale so max is 1
+    return img
+
+# Print Sample Predictions
 fig, axes = plt.subplots(2, 4, figsize=(14, 7))
-fig.suptitle("Test Predictions", fontsize=14)
+fig.suptitle('Test Predictions', fontsize=14)
 
 for col in range(4):
     axes[0, col].imshow(to_displayable(correct_imgs[col]))
-    axes[0, col].set_title(f"✓ {class_names[correct_true[col]]}", color="green", fontsize=9)
-    axes[0, col].axis("off")
+    axes[0, col].set_title(f'✓ {class_names[correct_true[col]]}', color='green', fontsize=9)
+    axes[0, col].axis('off')
 
     axes[1, col].imshow(to_displayable(incorrect_imgs[col]))
     axes[1, col].set_title(
-        f"✗ pred: {class_names[incorrect_pred[col]]}\ntrue: {class_names[incorrect_true[col]]}",
-        color="red",
-        fontsize=9
-    )
-    axes[1, col].axis("off")
+        f'✗ pred: {class_names[incorrect_pred[col]]}\ntrue:  {class_names[incorrect_true[col]]}',
+        color='red', fontsize=9)
+    axes[1, col].axis('off')
 
-axes[0, 0].set_ylabel("Correct")
-axes[1, 0].set_ylabel("Incorrect")
+axes[0, 0].set_ylabel('Correct', fontsize=11)
+axes[1, 0].set_ylabel('Incorrect', fontsize=11)
 
 plt.tight_layout()
 plt.show()
