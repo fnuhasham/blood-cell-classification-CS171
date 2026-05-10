@@ -1,21 +1,22 @@
 import os
+import gc
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
+
 from tensorflow.keras import layers, models
 from tensorflow.keras.applications import ResNet50
-import matplotlib.pyplot as plt
 from sklearn.metrics import classification_report, ConfusionMatrixDisplay
-from sklearn.utils.class_weight import compute_class_weight
+
+tf.keras.backend.clear_session()
+gc.collect()
 
 DATASET_PATH = "bloodcells_dataset"
+
 IMG_SIZE = (224, 224)
-BATCH_SIZE = 32
+BATCH_SIZE = 16
 SEED = 42
 
-print("Folders found:")
-print(os.listdir(DATASET_PATH))
-
-# Split Data into 80/10/10
 train_data = tf.keras.utils.image_dataset_from_directory(
     DATASET_PATH,
     validation_split=0.2,
@@ -37,45 +38,32 @@ temp_data = tf.keras.utils.image_dataset_from_directory(
 total_size = temp_data.cardinality().numpy()
 val_data = temp_data.take(total_size // 2)
 test_data = temp_data.skip(total_size // 2)
-print("Validation Images: ", val_data.cardinality().numpy() * BATCH_SIZE)
-print("Test Images: ", test_data.cardinality().numpy() * BATCH_SIZE)
 
 class_names = train_data.class_names
-print("Classes:", class_names)
 
-# Use class weights from training labels
-train_labels = np.concatenate([y.numpy() for _, y in train_data])
-class_weights = compute_class_weight(
-    class_weight="balanced",
-    classes=np.unique(train_labels),
-    y=train_labels
-)
-
-class_weight_dict = dict(enumerate(class_weights))
-print("Class weights:", class_weight_dict)
-
-# Cache and Prefetch
 AUTOTUNE = tf.data.AUTOTUNE
-train_data = train_data.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
-val_data = val_data.cache().prefetch(buffer_size=AUTOTUNE)
-test_data = test_data.cache().prefetch(buffer_size=AUTOTUNE)
 
-# Data augmentation to help with overfitting and improve generalization
+train_data = train_data.shuffle(500).prefetch(AUTOTUNE)
+val_data = val_data.prefetch(AUTOTUNE)
+test_data = test_data.prefetch(AUTOTUNE)
+
+# ---- Data Augmentation ----
 data_augmentation = tf.keras.Sequential([
     layers.RandomFlip("horizontal"),
-    layers.RandomRotation(0.08),
-    layers.RandomZoom(0.10),
-    layers.RandomContrast(0.1),
-    layers.RandomBrightness(0.1),
-], name="data_augmentation")
+    layers.RandomRotation(0.05),
+    layers.RandomZoom(0.1),
+])
 
+# ---- Base Model ----
 base_model = ResNet50(
     include_top=False,
     weights="imagenet",
     input_shape=(224, 224, 3)
 )
+
 base_model.trainable = False
 
+# ---- Model ----
 model = models.Sequential([
     layers.Input(shape=(224, 224, 3)),
     data_augmentation,
@@ -96,22 +84,42 @@ model.compile(
     metrics=["accuracy"]
 )
 
-model.summary()
-
 early_stopping = tf.keras.callbacks.EarlyStopping(
     monitor="val_loss",
-    patience=5,
+    patience=3,
     restore_best_weights=True
 )
 
+# ---- Initial Training ----
 history = model.fit(
     train_data,
     validation_data=val_data,
     epochs=10,
-    callbacks=[early_stopping],
-    class_weight=class_weight_dict
+    callbacks=[early_stopping]
 )
 
+# ---- Fine-tuning ----
+print("Starting fine-tuning...")
+
+base_model.trainable = True
+
+for layer in base_model.layers[:-30]:
+    layer.trainable = False
+
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),
+    loss="sparse_categorical_crossentropy",
+    metrics=["accuracy"]
+)
+
+fine_tune_history = model.fit(
+    train_data,
+    validation_data=val_data,
+    epochs=5,
+    callbacks=[early_stopping]
+)
+
+# ---- Evaluate ----
 # Show Accuracy
 plt.plot(history.history["accuracy"], label="Training Accuracy")
 plt.plot(history.history["val_accuracy"], label="Validation Accuracy")
@@ -172,7 +180,6 @@ plt.xticks(rotation = 45, ha='right')
 plt.tight_layout()
 plt.show()
 
-
 def to_displayable(img):
     img = img - img.min()  # shift so min is 0
     img = img / img.max()  # scale so max is 1
@@ -199,5 +206,5 @@ axes[1, 0].set_ylabel('Incorrect', fontsize=11)
 plt.tight_layout()
 plt.show()
 
-model.save("blood_cell_resnet50_model.keras")
-print("Model saved as blood_cell_resnet50_model.keras")
+# ---- Save Model ----
+model.save("/content/drive/MyDrive/blood_cell_resnet50_model.keras")
